@@ -1,56 +1,53 @@
 using System;
 using System.Collections.Generic;
 
-namespace LinFu.DynamicProxy
-{
-    public struct ProxyCacheEntry
-    {
+namespace LinFu.DynamicProxy {
+    public struct ProxyCacheEntry {
         private readonly int hashCode;
         public Type BaseType;
         public Type[] Interfaces;
 
-        public ProxyCacheEntry(Type baseType, Type[] interfaces)
-        {
-            if (baseType == null)
-            {
-                throw new ArgumentNullException("baseType");
-            }
-            BaseType = baseType;
+        public ProxyCacheEntry(Type baseType, Type[] interfaces) {
+            BaseType = baseType ?? throw new ArgumentNullException(nameof(baseType));
             Interfaces = interfaces;
 
-            if (interfaces == null || interfaces.Length == 0)
-            {
+            if (interfaces == null || interfaces.Length == 0) {
                 hashCode = baseType.GetHashCode();
                 return;
             }
 
             // duplicated type exclusion
-            Dictionary<Type, object> set = new Dictionary<Type, object>(interfaces.Length + 1);
-            set[baseType] = null;
-            foreach (Type type in interfaces)
-            {
-                if (type != null)
-                    set[type] = null;
-            }
+            ISet<Type> set = GetTypes(baseType, interfaces);
 
             hashCode = 0;
-            foreach (Type type in set.Keys)
-            {
+            foreach (var type in set) {
                 hashCode ^= type.GetHashCode();
             }
         }
 
-        public override bool Equals(object obj)
-        {
+        private static ISet<Type> GetTypes(Type baseType, Type[] interfaces) {
+            ISet<Type> set = new HashSet<Type>();
+            set.Add(baseType);
+            if (interfaces != null) {
+                foreach (Type type in interfaces) {
+                    if (type != null)
+                        set.Add(type);
+                }
+            }
+            return set;
+        }
+
+        public override bool Equals(object obj) {
             if (!(obj is ProxyCacheEntry))
                 return false;
 
-            ProxyCacheEntry other = (ProxyCacheEntry)obj;
-            return hashCode == other.GetHashCode();
+            ProxyCacheEntry other = (ProxyCacheEntry) obj;
+            return hashCode == other.GetHashCode()
+                   && BaseType == other.BaseType
+                   && GetTypes(BaseType, Interfaces).SetEquals(GetTypes(other.BaseType, other.Interfaces));
         }
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return hashCode;
         }
     }
